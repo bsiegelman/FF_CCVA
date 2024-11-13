@@ -44,7 +44,27 @@ run_glm_and_extract <- function(dep_var, set) {
 
 # List of dependent variables
 dependent_vars <- c(
-     "CCVA Social Score",
+     "ccva_social",
+     "social_sensitivity",
+     "social_adaptive",
+     "econ_dependence",
+     "livelihood_dependence",
+     "food_dependence",
+     "food_perception",
+     "livelihood_div",
+     "gear_div",
+     "emergency_funds",
+     "social_trust",
+     "cmmty_empowerment",
+     "mobile_phones",
+     "ed_level"
+)
+
+# Run GLMs and compile results into a data frame
+gesi_models_results <- bind_rows(lapply(dependent_vars, function(var) run_glm_and_extract(var, set)))
+
+rownames(gesi_models_results) <- 
+     c("CCVA Social Score",
      "Social Sensitivity Score",
      "Social Adaptive Score",
      "Economic Dependence",
@@ -59,10 +79,3 @@ dependent_vars <- c(
      "Mobile Phone Prevalence",
      "% Educated 10+ years"
 )
-
-# Run GLMs and compile results into a data frame
-gesi_models_results <- bind_rows(lapply(dependent_vars, function(var) run_glm_and_extract(var, set)))
-
-
-
-
