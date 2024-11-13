@@ -2,9 +2,9 @@
 ## per household based on a given hypothesis/demographic grouping
 
 ##1. Define the column you will use for demographic grouping/hypothesis
-demo_col <- ccva_gender_results$`Female Processers`
+demo_col <- ccva_gender_results$`Women Fish Work Y/N`
 ##update the text to describe your demographic grouping
-demo_text <- "Female Fish Buyers"
+demo_text <- "Female Fish Workers"
 
 ##2. Subset the relevant columns for CCVA calculation
 ## this automatically includes the demo_col object defined above
@@ -96,6 +96,32 @@ CCVA_gesi_hypothesis <- hypothesis_table %>%
           `CCVA Social Score` < 0, 0, `CCVA Social Score`)) %>%
      rename("% Educated 10+ years" = `Education Weighted`) %>%
      group_by(`demo_col`)
+
+colnames(CCVA_gesi_hypothesis) <- c("demo_col", 
+                                    "livelihood_dependence",
+                                    "econ_dependence",
+                                    "food_dependence",
+                                    "food_perception",
+                                    "emergency_funds",
+                                    "livelihood_div",
+                                    "gear_div",
+                                    "social_trust",
+                                    "mobile_phones",
+                                    "cmmty_empowerment",
+                                    "ed_level",
+                                    "social_sensitivity",
+                                    "social_adaptive",
+                                    "ccva_social")
+
+##scale ed_level to a 0-1 range for modeling, using min-max normalization
+# Rescale ed_level to a 0-1 range
+CCVA_gesi_hypothesis$ed_level <- (CCVA_gesi_hypothesis$ed_level - 
+                                       min(CCVA_gesi_hypothesis$ed_level,
+                                           na.rm = TRUE)) /
+     (max(CCVA_gesi_hypothesis$ed_level,
+          na.rm = TRUE) - min(CCVA_gesi_hypothesis$ed_level,
+                              na.rm = TRUE))
+
 
 ## You now have a table listing the CCVA Social Variable scores for each group
 ## in your chosen demographic breakdown.
