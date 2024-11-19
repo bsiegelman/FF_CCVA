@@ -2,6 +2,9 @@
 ccva_gender_calc <- ccva_social_clean %>%
      select(`Gender`,
             `HH Status`,
+            `Provinsi`,
+            `Kabupaten`,
+            `Desa`,
             `_10_certain_tribe_Ya`,
             `Number of HH Members`,
             `Total Number Educated`,
@@ -26,6 +29,9 @@ ccva_gender_calc <- ccva_social_clean %>%
             `_87_hh_average_income`)
 colnames(ccva_gender_calc) <- c("Gender", 
                                 "HH Status",
+                                "Province",
+                                "MA Area",
+                                "Community",
                                 "Ethnicity",
                                 "Number of HH Members",
                                 "Total Number Educated",
