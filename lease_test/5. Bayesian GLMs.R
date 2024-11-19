@@ -10,29 +10,28 @@ epsilon <- 1e-8
 CCVA_gesi_hypothesis <- CCVA_gesi_hypothesis %>% 
      mutate(demo_col = demo_col %>% factor) %>%
      ## transform 1's and 0's to fit into beta family
-     mutate_at(vars(2:15),
+     mutate_at(vars(5:18),
                ~ case_when(
                     . >= 1 ~ 1 - epsilon,
                     . <= 0 ~ epsilon,
                     TRUE ~ .
                ))
 
-## CCVA score
-ccva_model <- brm(formula = ccva_social ~ demo_col,
+##1. CCVA score model
+ccva_model <- brm(formula = ccva_social ~ demo_col + (1|community),
     family = "beta",
     data = CCVA_gesi_hypothesis)
 
 ## The following checks for fit
-ccva_model_loo <- add_criterion(ccva_model, "loo", save_psis = T, reloo = T)
+ccva_model <- add_criterion(ccva_model, "loo", save_psis = T, reloo = T)
 ## Looking for Pareto-K to be < 0.7
-loo(ccva_model_loo)
+loo(ccva_model)
 ## normal distributions, 'hairy caterpillars'
 plot(ccva_model)
 ## Rhat near 1, < 1.05; ESS > 1000
 summary(ccva_model) 
 ## general alignment
 pp_check(ccva_model, ndraws = 50)
-
 
 ## The following transforms model results out of logit
 
@@ -52,14 +51,15 @@ plot(conditional_effects(ccva_model, dpar = "mu"),
 ##2. Multivariate GLMMs parsing driver variables
 
 ##2a. Social Sensitivity & Adaptive Capacity
-sens_ac_model <- brm(bf(mvbind(social_sensitivity, social_adaptive) ~ demo_col),
+sens_ac_model <- brm(bf(mvbind(social_sensitivity, social_adaptive) ~ demo_col 
+                        + (1|community)),
    family = "beta",
    data = CCVA_gesi_hypothesis)
 
 ## check for fit
-sens_ac_model_loo <- add_criterion(sens_ac_model, "loo", save_psis = T, reloo = T)
+sens_ac_model <- add_criterion(sens_ac_model, "loo", save_psis = T, reloo = T)
 ## Looking for Pareto-K to be < 0.7
-loo(sens_ac_model_loo)
+loo(sens_ac_model)
 ## normal distributions, 'hairy caterpillars'
 plot(sens_ac_model)
 ## Rhat near 1, < 1.05; ESS > 1000
@@ -89,14 +89,14 @@ plot(conditional_effects(sens_ac_model, dpar = "mu"),
 
 ##2b. Social Sensitivity, with component variables
 sensitivity_var_model <- brm(bf(mvbind(livelihood_dependence, econ_dependence,
-              food_dependence, food_perception) ~ demo_col),
+              food_dependence, food_perception) ~ demo_col + (1|community)),
     family = "beta",
     data = CCVA_gesi_hypothesis)
 
 ## check for fit
-sensitivity_var_model_loo <- add_criterion(sensitivity_var_model, "loo", save_psis = T, reloo = T)
+sensitivity_var_model <- add_criterion(sensitivity_var_model, "loo", save_psis = T, reloo = T)
 ## Looking for Pareto-K to be < 0.7
-loo(sensitivity_var_model_loo)
+loo(sensitivity_var_model)
 ## normal distributions, 'hairy caterpillars'
 plot(sensitivity_var_model)
 ## Rhat near 1, < 1.05; ESS > 1000
@@ -109,8 +109,6 @@ pp_check(sensitivity_var_model, resp = "foodperception", ndraws = 50)
 
 
 ## transform results for interpretability
-##doesn't work for multivariate model
-model_parameters(sensitivity_var_model, exponentiate = T, ci = c(0.95, 0.80, 0.60))
 ## Tentative solution
 # Extract posterior samples
 post_sensvar_samples <- insight::get_parameters(sensitivity_var_model) %>%
@@ -134,9 +132,9 @@ ac_var_model <- brm(bf(mvbind(emergency_funds, livelihood_div,
     data = CCVA_gesi_hypothesis)
 
 ## check for fit
-ac_var_model_loo <- add_criterion(ac_var_model, "loo", save_psis = T, reloo = T)
+ac_var_model <- add_criterion(ac_var_model, "loo", save_psis = T, reloo = T)
 ## Looking for Pareto-K to be < 0.7
-loo(ac_var_model_loo)
+loo(ac_var_model)
 ## normal distributions, 'hairy caterpillars'
 plot(ac_var_model)
 ## Rhat near 1, < 1.05; ESS > 1000
