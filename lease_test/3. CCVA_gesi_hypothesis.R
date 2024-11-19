@@ -26,7 +26,12 @@ hypothesis_table <- ccva_gender_results %>%
      mutate(across(everything(), ~ifelse(
           is.numeric(.), round(., 3), .)))
 #bind demo_col and group by demo_col
-hypothesis_table <- cbind(demo_col, hypothesis_table) %>%
+hypothesis_table <- bind_cols(
+     demo_col = demo_col,
+     Province = as.factor(ccva_gender_results$`Province`),
+     MA = as.factor(ccva_gender_results$`MA Area`),
+     Community = as.factor(ccva_gender_results$`Community`), 
+     hypothesis_table) %>%
      group_by(`demo_col`)
 
 hypothesis_table$`demo_col` <- ifelse(
@@ -98,6 +103,9 @@ CCVA_gesi_hypothesis <- hypothesis_table %>%
      group_by(`demo_col`)
 
 colnames(CCVA_gesi_hypothesis) <- c("demo_col", 
+                                    "province",
+                                    "ma",
+                                    "community",
                                     "livelihood_dependence",
                                     "econ_dependence",
                                     "food_dependence",
