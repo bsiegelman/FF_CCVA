@@ -6,8 +6,6 @@ library(stringr)
 library(tidytext)
 library(readxl)
 library(data.world)
-install.packages("glmmTMB")
-library(glmmTMB)
 
 ##read in data
 data <- read.csv2("hhs_kobo_idn.csv")
@@ -20,7 +18,10 @@ activities_data <- read_xlsx("lease_activities.xlsx")
 
 ##subset relevant columns (NOTE: This does not include EDUCATION LEVEL)
 ccva_social <- data %>%
-     select(`_16a_fishing_men`:`_16c_fishing_children`,
+     select(`Provinsi`,
+            `Kabupaten`,
+            `Desa`,
+            `_16a_fishing_men`:`_16c_fishing_children`,
             `_17a_processing_men`:`_17c_processing_children`,
             `_15a_farming_yes_no`,
             `_15b_harvesting_yes_no`,
@@ -130,7 +131,8 @@ one <- c("very_confident_not",
          "yes")
 
 ## convert remaining multiple choice questions into numeric scales based on above criteria
-for (col in names(ccva_social_numeric)) {
+## except for the 3 geography columns at the beginning
+for (col in names(ccva_social_numeric[4:length(ccva_social_numeric)])) {
      if (is.character(ccva_social_numeric[[col]])) {
           ccva_social_numeric[[col]] <- ifelse(
                ccva_social_numeric[[col]] %in% zero, 0, ifelse(
@@ -190,7 +192,7 @@ ccva_social_clean <- ccva_social_numeric %>%
           ifelse(
                rowSums(across(c(`_27b_item_hp`, `_27c_item_smartphone`)),
                        na.rm = TRUE) > 0, 1, 0))) %>%
-     mutate(Gender = data$`_8_gender`, .before = `_16a_fishing_men`) %>%
+     mutate(Gender = data$`_8_gender`, .before = `Provinsi`) %>%
      mutate("HH Status" = data$`_7_hh_status`, .after = Gender)
 
 ## Subset Education Data
@@ -239,7 +241,7 @@ ed_clean <- bind_rows(ed_clean, missing_rows) %>%
 
 ## bind ed_clean to ccva_social_clean for one data set
 ## NOTE: We have to use parent index for this data set rather than uuid
-## there seems to be an issue with unmatching uuid's
+## there seems to be an issue with non-matching uuid's
 ccva_social_clean <- cbind(ccva_social_clean[,1:2],
                            ed_clean,
                            ccva_social_clean[,3:ncol(ccva_social_clean)]) %>%
