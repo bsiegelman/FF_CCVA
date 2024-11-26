@@ -1,16 +1,284 @@
 install.packages("MASS")
 library(MASS)
 library(broom)
+install.packages("brms")
+library(brms)
+install.packages("parameters")
+library(parameters)
 
-## 1. Test independence of variables
-test <- glm(`Economic Dependence` ~
-                 `demo_col`,
-            data = CCVA_gesi_hypothesis,
-            family = gaussian(link= "identity"))
-summary(test)
+##Run the models for each variable, based on data type
+##1. First, need to create a new dataset that puts columns into appropriate data type
+epsilon <- 1e-8
 
-## in theory, households with women fish workers will have higher Economic Dependence
-## and Livelihood Dependence.
+## these are the columns with continuous data, for beta family distribution
+beta_fam <- c("livelihood_dependence",
+              "econ_dependence",
+              "social_sensitivity",
+              "ccva_social",
+              "social_adaptive",
+              "social_trust",
+              "ed_level")
+## these are the columns with ordinal data
+ordinal <- c("food_dependence",
+             "food_perception",
+             "emergency_funds",
+             "mobile_phones",
+             "cmmty_empowerment")
+
+CCVA_gesi_models <- CCVA_gesi_hypothesis %>% 
+     ungroup() %>%
+     mutate(demo_col = demo_col %>% factor) %>% 
+     # Transform continuous columns to fit the beta family
+     mutate(across(all_of(beta_fam), ~ case_when(
+          . >= 1 ~ 1 - epsilon,
+          . <= 0 ~ epsilon,
+          TRUE ~ .
+     ))) %>% 
+     # Convert the ordinal columns to ascending integer values
+     mutate(across(all_of(ordinal), ~ {
+          factor(., 
+                 levels = sort(unique(.)),
+                 labels = seq_along(sort(unique(.))),
+                 ordered = TRUE)
+     }))
+
+##2. Univariate models for demo_col and each variable
+##2a. Livelihood Dependence
+liv_dep_model <- brm(formula = livelihood_dependence ~ demo_col + (1|community),
+                  family = "beta",
+                  data = CCVA_gesi_models)
+
+## The following checks for fit
+liv_dep_model <- add_criterion(liv_dep_model, "loo", save_psis = T, reloo = T)
+## Looking for Pareto-K to be < 0.7
+loo(liv_dep_model)
+## normal distributions, 'hairy caterpillars'
+plot(liv_dep_model)
+## Rhat near 1, < 1.05; ESS > 1000
+summary(liv_dep_model) 
+## general alignment
+pp_check(liv_dep_model, ndraws = 50)
+
+## The following transforms model results out of logit
+
+# posterior_samples(model1, pars = "b_")[,1:2] %>%
+#     mutate_at(vars(b_Intercept, b_demo_col1), exp) %>%
+#      posterior_summary() %>%
+#      as.data.frame() %>%
+#      rownames_to_column("Parameter") 
+
+model_parameters(liv_dep_model, exponentiate = T, ci = c(0.95, 0.80, 0.60))
+
+plot(conditional_effects(liv_dep_model, dpar = "mu"),
+     points = T)
+
+##2b. Economic Dependence
+econ_dep_model <- brm(formula = econ_dependence ~ demo_col + (1|community),
+                     family = "beta",
+                     data = CCVA_gesi_models)
+
+## The following checks for fit
+econ_dep_model <- add_criterion(econ_dep_model, "loo", save_psis = T, reloo = T)
+## Looking for Pareto-K to be < 0.7
+loo(econ_dep_model)
+## normal distributions, 'hairy caterpillars'
+plot(econ_dep_model)
+## Rhat near 1, < 1.05; ESS > 1000
+summary(econ_dep_model) 
+## general alignment
+pp_check(econ_dep_model, ndraws = 50)
+
+## The following transforms model results out of logit
+model_parameters(econ_dep_model, exponentiate = T, ci = c(0.95, 0.80, 0.60))
+
+plot(conditional_effects(econ_dep_model, dpar = "mu"),
+     points = T)
+
+##2c. Food Security Dependence
+food_dep_model <- brm(formula = food_dependence ~ demo_col + (1|community),
+                      family = cumulative("logit"),
+                      cores = 4,
+                      data = CCVA_gesi_models,
+                      save_pars = save_pars(all = T))
+
+## The following checks for fit
+food_dep_model <- add_criterion(food_dep_model, "loo", save_psis = T, reloo = T)
+## Looking for Pareto-K to be < 0.7
+loo(food_dep_model)
+## normal distributions, 'hairy caterpillars'
+plot(food_dep_model)
+## Rhat near 1, < 1.05; ESS > 1000
+summary(food_dep_model) 
+## general alignment
+pp_check(food_dep_model, ndraws = 50)
+
+## The following transforms model results out of logit
+model_parameters(food_dep_model, exponentiate = T, ci = c(0.95, 0.80, 0.60))
+
+plot(conditional_effects(food_dep_model, dpar = "mu"),
+     points = T)
+
+##2d. Food Insecurity Perception
+food_insecurity_model <- brm(formula = food_perception ~ demo_col + (1|community),
+                      family = cumulative("logit"),
+                      data = CCVA_gesi_models,
+                      save_pars = save_pars(all = T))
+
+## The following checks for fit
+food_insecurity_model <- add_criterion(food_insecurity_model, "loo", save_psis = T, reloo = T)
+## Looking for Pareto-K to be < 0.7
+loo(food_insecurity_model)
+## normal distributions, 'hairy caterpillars'
+plot(food_insecurity_model)
+## Rhat near 1, < 1.05; ESS > 1000
+summary(food_insecurity_model) 
+## general alignment
+pp_check(food_insecurity_model, ndraws = 50)
+
+## The following transforms model results out of logit
+model_parameters(food_insecurity_model, exponentiate = T, ci = c(0.95, 0.80, 0.60))
+
+plot(conditional_effects(food_insecurity_model, dpar = "mu"),
+     points = T)
+
+##2c. Food Security Dependence
+food_dep_model <- brm(formula = food_dependence ~ demo_col + (1|community),
+                      family = cumulative("logit"),
+                      cores = 4,
+                      data = CCVA_gesi_models,
+                      save_pars = save_pars(all = T))
+
+## The following checks for fit
+food_dep_model <- add_criterion(food_dep_model, "loo", save_psis = T, reloo = T)
+## Looking for Pareto-K to be < 0.7
+loo(food_dep_model)
+## normal distributions, 'hairy caterpillars'
+plot(food_dep_model)
+## Rhat near 1, < 1.05; ESS > 1000
+summary(food_dep_model) 
+## general alignment
+pp_check(food_dep_model, ndraws = 50)
+
+## The following transforms model results out of logit
+model_parameters(food_dep_model, exponentiate = T, ci = c(0.95, 0.80, 0.60))
+
+plot(conditional_effects(food_dep_model, dpar = "mu"),
+     points = T)
+
+##2e. Access to Emergency Funds
+emergency_funds_model <- brm(formula = emergency_funds ~ demo_col + (1|community),
+                             family = bernoulli("logit"),
+                             data = CCVA_gesi_models,
+                             save_pars = save_pars(all = T))
+
+## The following checks for fit
+emergency_funds_model <- add_criterion(emergency_funds_model, "loo", save_psis = T, reloo = T)
+## Looking for Pareto-K to be < 0.7
+loo(emergency_funds_model)
+## normal distributions, 'hairy caterpillars'
+plot(emergency_funds_model)
+## Rhat near 1, < 1.05; ESS > 1000
+summary(emergency_funds_model) 
+## general alignment
+pp_check(emergency_funds_model, ndraws = 50)
+## The following transforms model results out of logit
+model_parameters(emergency_funds_model, exponentiate = T, ci = c(0.95, 0.80, 0.60))
+
+plot(conditional_effects(emergency_funds_model, dpar = "mu"),
+     points = T)
+
+##2f. Social Trust
+trust_model <- brm(formula = social_trust ~ demo_col + (1|community),
+                     family = "beta",
+                     data = CCVA_gesi_models)
+
+## The following checks for fit
+trust_model <- add_criterion(trust_model, "loo", save_psis = T, reloo = T)
+## Looking for Pareto-K to be < 0.7
+loo(trust_model)
+## normal distributions, 'hairy caterpillars'
+plot(trust_model)
+## Rhat near 1, < 1.05; ESS > 1000
+summary(trust_model) 
+## general alignment
+pp_check(trust_model, ndraws = 50)
+
+## The following transforms model results out of logit
+model_parameters(trust_model, exponentiate = T, ci = c(0.95, 0.80, 0.60))
+
+plot(conditional_effects(trust_model, dpar = "mu"),
+     points = T)
+
+##2g. Mobile Phones
+phones_model <- brm(formula = mobile_phones ~ demo_col + (1|community),
+                             family = bernoulli("logit"),
+                             data = CCVA_gesi_models,
+                             save_pars = save_pars(all = T))
+
+## The following checks for fit
+phones_model <- add_criterion(phones_model, "loo", save_psis = T, reloo = T)
+## Looking for Pareto-K to be < 0.7
+loo(phones_model)
+## normal distributions, 'hairy caterpillars'
+plot(phones_model)
+## Rhat near 1, < 1.05; ESS > 1000
+summary(phones_model) 
+## general alignment
+pp_check(phones_model, ndraws = 50)
+## The following transforms model results out of logit
+model_parameters(phones_model, exponentiate = T, ci = c(0.95, 0.80, 0.60))
+
+plot(conditional_effects(phones_model, dpar = "mu"),
+     points = T)
+
+##2h. Community Empowerment
+empowerment_model <- brm(formula = cmmty_empowerment ~ demo_col + (1|community),
+                      family = cumulative("logit"),
+                      data = CCVA_gesi_models,
+                      save_pars = save_pars(all = T))
+
+## The following checks for fit
+empowerment_model <- add_criterion(empowerment_model, "loo", save_psis = T, reloo = T)
+## Looking for Pareto-K to be < 0.7
+loo(empowerment_model)
+## normal distributions, 'hairy caterpillars'
+plot(empowerment_model)
+## Rhat near 1, < 1.05; ESS > 1000
+summary(empowerment_model) 
+## general alignment
+pp_check(empowerment_model, ndraws = 50)
+## The following transforms model results out of logit
+model_parameters(empowerment_model, exponentiate = T, ci = c(0.95, 0.80, 0.60))
+
+plot(conditional_effects(empowerment_model, dpar = "mu"),
+     points = T)
+
+##2i. Education Level
+ed_model <- brm(formula = ed_level ~ demo_col + (1|community),
+                   family = "beta",
+                   data = CCVA_gesi_models)
+
+## The following checks for fit
+ed_model <- add_criterion(ed_model, "loo", save_psis = T, reloo = T)
+## Looking for Pareto-K to be < 0.7
+loo(ed_model)
+## normal distributions, 'hairy caterpillars'
+plot(ed_model)
+## Rhat near 1, < 1.05; ESS > 1000
+summary(ed_model) 
+## general alignment
+pp_check(ed_model, ndraws = 50)
+
+## The following transforms model results out of logit
+model_parameters(ed_model, exponentiate = T, ci = c(0.95, 0.80, 0.60))
+
+plot(conditional_effects(ed_model, dpar = "mu"),
+     points = T)
+
+
+
+
+
 
 
 ## 2. Run the models for each variable and produce a table of results
