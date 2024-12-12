@@ -16,14 +16,14 @@ beta_fam <- c("livelihood_dependence",
               "social_sensitivity",
               "ccva_social",
               "social_adaptive",
-              "social_trust",
-              "ed_level")
+              "social_trust")
 ## these are the columns with ordinal data
 ordinal <- c("food_dependence",
              "food_perception",
              "emergency_funds",
              "mobile_phones",
-             "cmmty_empowerment")
+             "cmmty_empowerment",
+             "ed_level")
 
 CCVA_gesi_models <- CCVA_gesi_hypothesis %>% 
      ungroup() %>%
@@ -41,6 +41,31 @@ CCVA_gesi_models <- CCVA_gesi_hypothesis %>%
                  labels = seq_along(sort(unique(.))),
                  ordered = TRUE)
      }))
+
+## convert gear_div to an ordered factor with dynamic levels
+unique_levels <- sort(unique(CCVA_gesi_models$gear_div))
+CCVA_gesi_models$gear_div <- factor(CCVA_gesi_models$gear_div, 
+                                          levels = unique_levels, 
+                                          ordered = TRUE)
+## convert total_educated to an ordered factor with dynamic levels
+unique_levels <- sort(unique(CCVA_gesi_models$livelihood_div))
+CCVA_gesi_models$livelihood_div <- factor(CCVA_gesi_models$livelihood_div, 
+                                          levels = unique_levels, 
+                                          ordered = TRUE)
+
+##add Total Number Educated & Total HH Size for education model
+CCVA_gesi_models$`total_educated` <- as.factor(hypothesis_table$`Total Number Educated`)
+## convert total_educated to an ordered factor with dynamic levels
+unique_levels <- sort(unique(CCVA_gesi_models$total_educated))
+CCVA_gesi_models$total_educated <- factor(CCVA_gesi_models$total_educated, 
+                                          levels = unique_levels, 
+                                          ordered = TRUE)
+CCVA_gesi_models$`hh_size` <- as.integer(hypothesis_table$`Number of HH Members`)
+CCVA_gesi_models <- CCVA_gesi_models %>%
+     mutate("percent_ed" = case_when(
+          `total_educated`/`hh_size` >= 1 ~ 1 - epsilon,
+          `total_educated`/`hh_size` <= 0 ~ epsilon,
+          TRUE ~ `total_educated`/`hh_size`))
 
 ##2. Univariate models for demo_col and each variable
 ##2a. Livelihood Dependence
@@ -254,9 +279,9 @@ plot(conditional_effects(empowerment_model, dpar = "mu"),
      points = T)
 
 ##2i. Education Level
-ed_model <- brm(formula = ed_level ~ demo_col + (1|community),
-                   family = "beta",
-                   data = CCVA_gesi_models)
+ed_model <- brm(formula = total_educated ~ demo_col + (1|community),
+                family = cratio, 
+                data = CCVA_gesi_models)
 
 ## The following checks for fit
 ed_model <- add_criterion(ed_model, "loo", save_psis = T, reloo = T)
@@ -275,13 +300,54 @@ model_parameters(ed_model, exponentiate = T, ci = c(0.95, 0.80, 0.60))
 plot(conditional_effects(ed_model, dpar = "mu"),
      points = T)
 
+##2j. Gear Diversity
+gear_model <- brm(formula = gear_div ~ demo_col + (1|community),
+                family = cratio, 
+                data = CCVA_gesi_models)
+
+## The following checks for fit
+gear_model <- add_criterion(gear_model, "loo", save_psis = T, reloo = T)
+## Looking for Pareto-K to be < 0.7
+loo(gear_model)
+## normal distributions, 'hairy caterpillars'
+plot(gear_model)
+## Rhat near 1, < 1.05; ESS > 1000
+summary(gear_model) 
+## general alignment
+pp_check(gear_model, ndraws = 50)
+
+## The following transforms model results out of logit
+model_parameters(gear_model, exponentiate = T, ci = c(0.95, 0.80, 0.60))
+
+plot(conditional_effects(gear_model, dpar = "mu"),
+     points = T)
+
+##2k. Livelihood Diversity
+livdiv_model <- brm(formula = livelihood_div ~ demo_col + (1|community),
+                family = cratio, 
+                data = CCVA_gesi_models)
+
+## The following checks for fit
+livdiv_model <- add_criterion(livdiv_model, "loo", save_psis = T, reloo = T)
+## Looking for Pareto-K to be < 0.7
+loo(livdiv_model)
+## normal distributions, 'hairy caterpillars'
+plot(livdiv_model)
+## Rhat near 1, < 1.05; ESS > 1000
+summary(livdiv_model) 
+## general alignment
+pp_check(livdiv_model, ndraws = 50)
+
+## The following transforms model results out of logit
+model_parameters(livdiv_model, exponentiate = T, ci = c(0.95, 0.80, 0.60))
+
+plot(conditional_effects(livdiv_model, dpar = "mu"),
+     points = T)
 
 
 
 
-
-
-## 2. Run the models for each variable and produce a table of results
+## 2. This is the simple one-by-one GLM approach that produces a table of results for each variable
 # Define the dataset
 set <- CCVA_gesi_hypothesis
 
