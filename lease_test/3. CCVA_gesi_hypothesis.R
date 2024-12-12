@@ -39,29 +39,21 @@ hypothesis_table$`demo_col` <- ifelse(
 
 ##3. Set weighted value for % educated in each household
 ## this is important in order to account for the different sizes of households
-## this is done by dividing Number Educated by total number of individuals in that group, then multiplying by the number of hh in that group
+## this is done by multiplying the households % educated by the group's % educated
+## this weighting approach scales by group-level education levels while preserving
+## hh and in-group proportional relationships, and avoids inflating values of smaller groups
 
 # Create a function to calculate weighted education scores per group
 weighted_ed <- function(num_educated_col, num_members_col, data) {
-     # Calculate group sums and counts
-     group_stats <- data %>%
+     data %>%
           group_by(demo_col) %>%
-          summarise(
-               group_indiv = sum({{ num_members_col }}, na.rm = TRUE),
-               group_hh = n(),
-               .groups = 'drop'  # Avoid warning about grouping in summarise
-          )
-     
-     # Merge group stats back to the original data
-     data <- data %>%
-          left_join(group_stats, by = "demo_col")
-     
-     # Calculate Education Weighted for each row
-     data <- data %>%
-          mutate(`Education Weighted` = ({{ num_educated_col }} / group_indiv * group_hh)) %>%
-          select(-c(group_indiv, group_hh))
-     
-     return(data)
+          mutate(
+               group_total_members = sum({{ num_members_col }}, na.rm = TRUE),
+               group_total_educated = sum({{ num_educated_col }}, na.rm = TRUE),
+               prop_educated_in_group = group_total_educated / group_total_members,
+               `Education Weighted` = ({{ num_educated_col }} / {{ num_members_col }}) * prop_educated_in_group
+          ) %>%
+          ungroup()
 }
 
 # Applying the function to calculate weighted scores
@@ -74,7 +66,10 @@ hypothesis_table <- weighted_ed(
 ## calculate CCVA scores
 CCVA_gesi_hypothesis <- hypothesis_table %>%
      select(-c(`Number of HH Members`,
-               `Total Number Educated`)) %>%
+               `Total Number Educated`,
+               `group_total_members`,
+               `group_total_educated`,
+               `prop_educated_in_group`)) %>%
      rowwise() %>%
      mutate("Social Sensitivity Score" = round(
           mean(c(`Livelihood Dependence`,
@@ -120,15 +115,6 @@ colnames(CCVA_gesi_hypothesis) <- c("demo_col",
                                     "social_sensitivity",
                                     "social_adaptive",
                                     "ccva_social")
-
-##scale ed_level to a 0-1 range for modeling, using min-max normalization
-# Rescale ed_level to a 0-1 range
-CCVA_gesi_hypothesis$ed_level <- (CCVA_gesi_hypothesis$ed_level - 
-                                       min(CCVA_gesi_hypothesis$ed_level,
-                                           na.rm = TRUE)) /
-     (max(CCVA_gesi_hypothesis$ed_level,
-          na.rm = TRUE) - min(CCVA_gesi_hypothesis$ed_level,
-                              na.rm = TRUE))
 
 
 ## You now have a table listing the CCVA Social Variable scores for each group
