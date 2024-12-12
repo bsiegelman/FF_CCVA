@@ -119,3 +119,65 @@ colnames(CCVA_gesi_hypothesis) <- c("demo_col",
 
 ## You now have a table listing the CCVA Social Variable scores for each group
 ## in your chosen demographic breakdown.
+
+##1. First, need to create a new dataset that puts columns into appropriate data type
+epsilon <- 1e-8
+
+## these are the columns with continuous data, for beta family distribution
+beta_fam <- c("livelihood_dependence",
+              "econ_dependence",
+              "social_sensitivity",
+              "ccva_social",
+              "social_adaptive",
+              "social_trust")
+## these are the columns with ordinal data
+ordinal <- c("food_dependence",
+             "food_perception",
+             "emergency_funds",
+             "mobile_phones",
+             "cmmty_empowerment",
+             "ed_level")
+
+CCVA_gesi_models <- CCVA_gesi_hypothesis %>% 
+     ungroup() %>%
+     mutate(demo_col = demo_col %>% factor) %>% 
+     # Transform continuous columns to fit the beta family
+     mutate(across(all_of(beta_fam), ~ case_when(
+          . >= 1 ~ 1 - epsilon,
+          . <= 0 ~ epsilon,
+          TRUE ~ .
+     ))) %>% 
+     # Convert the ordinal columns to ascending integer values
+     mutate(across(all_of(ordinal), ~ {
+          factor(., 
+                 levels = sort(unique(.)),
+                 labels = seq_along(sort(unique(.))),
+                 ordered = TRUE)
+     }))
+
+## convert gear_div to an ordered factor with dynamic levels
+unique_levels <- sort(unique(CCVA_gesi_models$gear_div))
+CCVA_gesi_models$gear_div <- factor(CCVA_gesi_models$gear_div, 
+                                    levels = unique_levels, 
+                                    ordered = TRUE)
+## convert total_educated to an ordered factor with dynamic levels
+unique_levels <- sort(unique(CCVA_gesi_models$livelihood_div))
+CCVA_gesi_models$livelihood_div <- factor(CCVA_gesi_models$livelihood_div, 
+                                          levels = unique_levels, 
+                                          ordered = TRUE)
+
+##add Total Number Educated & Total HH Size for education model
+CCVA_gesi_models$`total_educated` <- as.factor(hypothesis_table$`Total Number Educated`)
+## convert total_educated to an ordered factor with dynamic levels
+unique_levels <- sort(unique(CCVA_gesi_models$total_educated))
+CCVA_gesi_models$total_educated <- factor(CCVA_gesi_models$total_educated, 
+                                          levels = unique_levels, 
+                                          ordered = TRUE)
+CCVA_gesi_models$`hh_size` <- as.integer(hypothesis_table$`Number of HH Members`)
+CCVA_gesi_models <- CCVA_gesi_models %>%
+     mutate("percent_ed" = case_when(
+          `total_educated`/`hh_size` >= 1 ~ 1 - epsilon,
+          `total_educated`/`hh_size` <= 0 ~ epsilon,
+          TRUE ~ `total_educated`/`hh_size`))
+
+## Use this table for Bayesian modeling
