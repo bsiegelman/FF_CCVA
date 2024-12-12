@@ -79,7 +79,7 @@ replace_na(list(`Women Fish Work Y/N` = 0)) %>%
      mutate("Gear Diversity" = `Gear Diversity`*.25) %>%
      mutate("Gear Diversity" = ifelse(`Gear Diversity` > 1, 1, 
                                       `Gear Diversity`)) %>%
-     mutate("Livelihood Diversity" = `Livelihood Diversity`*.25) %>%
+     mutate("Livelihood Diversity" = `Livelihood Diversity`*.1) %>%
      mutate("Livelihood Diversity" = ifelse(`Livelihood Diversity` > 1, 1,
                                             `Livelihood Diversity`)) %>%
      ## calculate Trust Score
